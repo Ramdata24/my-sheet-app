@@ -1,0 +1,208 @@
+<!-- This is the "After" Standalone Frontend -->
+<!-- This is a regular HTML file you can host anywhere -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Standalone Web App</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; background: #f4f7f6; }
+    .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    form { margin-bottom: 20px; display: flex; gap: 10px; }
+    input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background-color: #f8f8f8; }
+    #message { margin-top: 10px; }
+    .loading { text-align: center; padding: 20px; color: #555; }
+  </style>
+</head>
+<body>
+
+
+  <div class="container">
+    <h1>My Standalone Web App (After)</h1>
+   
+    <form id="addItemForm">
+      <input type="text" id="name" placeholder="Your Name" required>
+      <input type="text" id="item" placeholder="Item" required>
+      <button type="submit" id="submitButton">Add Item</button>
+    </form>
+    <div id="message"></div>
+
+
+    <hr>
+   
+    <button id="loadButton">Load Data</button>
+    <h2>Data from Sheet</h2>
+    <div id="table-container">
+      <table id="dataTable">
+        <thead></thead>
+        <tbody>
+          <tr><td colspan="3">Click "Load Data"</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <script>
+    // --- CONFIGURATION ---
+    // PASTE YOUR NEW DEPLOYED WEB APP URL FROM STEP 2 IN THE README
+    const API_URL = "https://script.google.com/macros/s/AKfycbzgtAfpuZdD2ywT_wNstP5IdJQGUzVPGhT00Crva9rIyxslEk0bolYjnjFnHjmpumegwg/exec";
+    // ---------------------
+
+
+    const form = document.getElementById("addItemForm");
+    const loadButton = document.getElementById("loadButton");
+    const submitButton = document.getElementById("submitButton");
+    const messageDiv = document.getElementById("message");
+    const table = document.getElementById("dataTable");
+   
+    // Handle form submission
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const name = document.getElementById("name").value;
+      const item = document.getElementById("item").value;
+
+
+      // 1. Create the data payload
+      const data = {
+        action: "write",
+        payload: {
+          name: name,
+          item: item
+        }
+      };
+
+
+      // 2. Send data to the API using fetch()
+      setLoading(true);
+      fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json()) // Parse the JSON response from the API
+      .then(response => {
+        console.log(response);
+        showMessage(response.message, response.status.toLowerCase());
+        if (response.status === "Success") {
+          form.reset();
+          loadData(); // Reload data after adding
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        showMessage("An error occurred: " + err.message, "error");
+        setLoading(false);
+      });
+    });
+
+
+    // Handle load data button
+    loadButton.addEventListener("click", loadData);
+
+
+    function loadData() {
+      setLoading(true);
+     
+      // 1. Create the data payload
+      const data = {
+        action: "read"
+      };
+     
+      // 2. Send request to the API
+      fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify(data)
+      })
+      .then(res => res.json())
+      .then(response => {
+        if (response.status === "Success") {
+          buildTable(response.data); // Build table with the data
+        } else {
+          showMessage(response.message, "error");
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        showMessage("An error occurred: " + err.message, "error");
+        setLoading(false);
+      });
+    }
+
+
+    // Helper function to build the HTML table
+    function buildTable(data) {
+      const tbody = table.querySelector("tbody");
+      const thead = table.querySelector("thead");
+      tbody.innerHTML = "";
+      thead.innerHTML = "";
+
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3">No data found.</td></tr>';
+        return;
+      }
+     
+      // Build Headers
+      const trHead = document.createElement("tr");
+      data[0].forEach(header => {
+        const th = document.createElement("th");
+        th.textContent = header;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+     
+      // Build Body (skip header row)
+      data.slice(1).forEach(row => {
+        const tr = document.createElement("tr");
+        row.forEach(cell => {
+          const td = document.createElement("td");
+          // Format dates nicely
+          if (cell.toString().includes("GMT")) {
+            td.textContent = new Date(cell).toLocaleString();
+          } else {
+            td.textContent = cell;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+
+    // Helper function to show messages
+    function showMessage(msg, type = "success") {
+      messageDiv.textContent = msg;
+      messageDiv.style.color = (type === "error") ? "red" : "green";
+    }
+
+
+    // Helper function to disable buttons while loading
+    function setLoading(isLoading) {
+      if (isLoading) {
+        submitButton.disabled = true;
+        loadButton.disabled = true;
+        submitButton.textContent = "Loading...";
+      } else {
+        submitButton.disabled = false;
+        loadButton.disabled = false;
+        submitButton.textContent = "Add Item";
+      }
+    }
+   
+    // Initial load
+    loadData();
+   
+  </script>
+</body>
+</html>
+
+
+
